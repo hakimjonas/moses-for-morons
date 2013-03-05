@@ -1,0 +1,24 @@
+#!/bin/bash
+
+##############
+# ONLY run after training is done!!!
+# run with the same arguments as the prep/training script
+# Stand in the directory where your two data files are and execute with these arguments: 
+# 
+# bash tuning.sh name1.file name2.file fr en
+
+##############
+
+clear
+
+s=$(basename $1)
+t=$(basename $2)
+
+################################
+#tuning 
+cd ~/corpus/prepared/$s$t/working
+nohup nice ~/mosesdecoder/scripts/training/mert-moses.pl --decoder-flags="-threads 8" ~/corpus/prepared/$s$t/final_sets/tune.clean.$s ~/corpus/prepared/$s$t/final_sets/tune.clean.$t ~/mosesdecoder/bin/moses  train/model/moses.ini --mertdir ~/mosesdecoder/bin/ &> mert.out &
+
+##################################
+
+
