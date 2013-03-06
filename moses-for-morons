@@ -11,16 +11,18 @@
 
 # Will tokenize, train a truecasing model, truecase, clean + build a language model of the target language and binarise said model with Kenml
 
-##############
+##############ARGUMENTS AND STUFF###############
 
 clear
 
 s=$(basename $1)
 t=$(basename $2)
 
+##Make folder structure#######
 mkdir -p ~/corpus/prepared/$s$t/cleaned
 mkdir -p ~/corpus/prepared/$s$t/final_sets
 mkdir -p ~/corpus/prepared/$s$t/working
+
 ##############  Baseline System - Corpus Preparation ##############
 
 ######### Tokenization ########
