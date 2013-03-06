@@ -58,9 +58,9 @@ cd ~/corpus/prepared/$s$t/cleaned
 FILES=*
 for f in $FILES
 do
-  head -1000 $f>../final_sets/test.$f
-  head -1500 $f | tail -500>../final_sets/tune.$f
-  head -201500 $f | tail -200000>../final_sets/train.$f
+  head -2000 $f>../final_sets/test.$f
+  head -4000 $f | tail -2000>../final_sets/tune.$f
+  head -204000 $f | tail -200000>../final_sets/train.$f
 done
 #############################################################
 #make language model
