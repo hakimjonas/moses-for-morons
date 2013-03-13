@@ -7,22 +7,20 @@
 # 
 # An example with translating from french to english: 
 # 
-# bash universalcorpusprepparation.sh name1.file name2.file fr en
+# bash moses-for-morons.sh name1.file name2.file fr en
 
 # Will tokenize, train a truecasing model, truecase, clean + build a language model of the target language and binarise said model with Kenml
 
-##############ARGUMENTS AND STUFF###############
+##############
 
 clear
 
 s=$(basename $1)
 t=$(basename $2)
 
-##Make folder structure#######
 mkdir -p ~/corpus/prepared/$s$t/cleaned
 mkdir -p ~/corpus/prepared/$s$t/final_sets
 mkdir -p ~/corpus/prepared/$s$t/working
-
 ##############  Baseline System - Corpus Preparation ##############
 
 ######### Tokenization ########
@@ -39,15 +37,6 @@ mkdir -p ~/corpus/prepared/$s$t/working
 ~/mosesdecoder/scripts/recaser/truecase.perl --model ~/corpus/prepared/$s$t/$s.tok.tm < ~/corpus/prepared/$s$t/$s.tok > ~/corpus/prepared/$s$t/tok.tm.true.$s
 ~/mosesdecoder/scripts/recaser/truecase.perl --model ~/corpus/prepared/$s$t/$t.tok.tm < ~/corpus/prepared/$s$t/$t.tok > ~/corpus/prepared/$s$t/tok.tm.true.$t
 
-
-#################
-
-# removing empty lines: 
-
-#awk /./{print} ~/corpus/prepared/$s$t/tok.tm.true.$s
-#awk /./{print} ~/corpus/prepared/$s$t/tok.tm.true.$t
-
-###############
 ######### Cleaning - Sentence lenght 80 #######
 
 ~/mosesdecoder/scripts/training/clean-corpus-n.perl ~/corpus/prepared/$s$t/tok.tm.true $1 $2 ~/corpus/prepared/$s$t/cleaned/clean 1 80
@@ -58,9 +47,9 @@ cd ~/corpus/prepared/$s$t/cleaned
 FILES=*
 for f in $FILES
 do
-  head -2000 $f>../final_sets/test.$f
-  head -4000 $f | tail -2000>../final_sets/tune.$f
-  head -204000 $f | tail -200000>../final_sets/train.$f
+  head -1000 $f>../final_sets/test.$f
+  head -1500 $f | tail -500>../final_sets/tune.$f
+  tail -n +1501 $f >../final_sets/train.$f
 done
 #############################################################
 #make language model
@@ -80,11 +69,11 @@ export IRSTLM=$HOME/irstlm; ~/irstlm/bin/build-lm.sh -i tok.tm.true.$t.sb  -t ./
 
 cd ~/corpus/prepared/$s$t/working
 
-nohup nice ~/mosesdecoder/scripts/training/train-model.perl -cores 4 -root-dir train -corpus ~/corpus/prepared/$s$t/final_sets/train.clean -f $1 -e $2 -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:$HOME/lm/tok.tm.true.$t.blm:8 -external-bin-dir ~/mosesdecoder/tools >& training.out &
+nohup nice ~/mosesdecoder/scripts/training/train-model.perl --parallel -cores 4 -root-dir train -corpus ~/corpus/prepared/$s$t/final_sets/train.clean -f $1 -e $2 -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:$HOME/lm/tok.tm.true.$t.blm:8 -external-bin-dir ~/mosesdecoder/tools >& training.out &
 
 
 ################################
-#tuning - this is commented out because it will initiate before training is done, which is not a good idea...should be fixed
+#tuning 
 #cd ~/corpus/prepared/$s$t/working
 #nohup nice ~/mosesdecoder/scripts/training/mert-moses.pl --decoder-flags="-threads 8" ~/corpus/prepared/$s$t/final_sets/tune.clean.$s ~/corpus/#prepared/$s$t/final_sets/tune.clean.$t ~/mosesdecoder/bin/moses  train/model/moses.ini --mertdir ~/mosesdecoder/bin/ &> mert.out &
 
