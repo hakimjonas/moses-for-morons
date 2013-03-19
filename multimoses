@@ -1,0 +1,80 @@
+#!/bin/bash
+
+##############
+# Stand in the directory where your two data files are and execute with these arguments: 
+#
+# filename_source_language filename_target_language language_code_source language_code_target
+# 
+# An example with translating from french to english: 
+# 
+# bash multimoses name1.file name2.file fr en
+
+# Will tokenize, train a truecasing model, truecase, clean + build a language model of the target language and binarise said model with Kenml and then train the MT system.
+
+# The script now requires mgiza(multithreaded giza) and will use all cores for training
+
+# Note that there are settings that needs to match the computer running the script...
+
+##############
+
+clear
+
+s=$(basename $1)
+t=$(basename $2)
+
+mkdir -p ~/corpus/prepared/$s$t/cleaned
+mkdir -p ~/corpus/prepared/$s$t/final_sets
+mkdir -p ~/corpus/prepared/$s$t/working
+mkdir -p ~/corpus/prepared/$s$t/lm
+##############  Baseline System - Corpus Preparation ##############
+
+######### Tokenization ########
+~/mosesdecoder/scripts/tokenizer/tokenizer.perl -threads 8 -l $3 < $1 > ~/corpus/prepared/$s$t/$s.tok
+~/mosesdecoder/scripts/tokenizer/tokenizer.perl -threads 8 -l $4 < $2 > ~/corpus/prepared/$s$t/$t.tok
+
+######### Truecase Training ###
+
+~/mosesdecoder/scripts/recaser/train-truecaser.perl --model ~/corpus/prepared/$s$t/$s.tok.tm --corpus ~/corpus/prepared/$s$t/$s.tok
+~/mosesdecoder/scripts/recaser/train-truecaser.perl --model ~/corpus/prepared/$s$t/$t.tok.tm --corpus ~/corpus/prepared/$s$t/$t.tok
+
+######### Truecasing ##########
+
+~/mosesdecoder/scripts/recaser/truecase.perl --model ~/corpus/prepared/$s$t/$s.tok.tm < ~/corpus/prepared/$s$t/$s.tok > ~/corpus/prepared/$s$t/tok.tm.true.$s
+~/mosesdecoder/scripts/recaser/truecase.perl --model ~/corpus/prepared/$s$t/$t.tok.tm < ~/corpus/prepared/$s$t/$t.tok > ~/corpus/prepared/$s$t/tok.tm.true.$t
+
+######### Cleaning - Sentence lenght 80 #######
+
+~/mosesdecoder/scripts/training/clean-corpus-n.perl ~/corpus/prepared/$s$t/tok.tm.true $1 $2 ~/corpus/prepared/$s$t/cleaned/clean 1 80
+
+######### Split into training tuning and test ###############
+
+cd ~/corpus/prepared/$s$t/cleaned
+FILES=*
+for f in $FILES
+do
+  head -2000 $f>../final_sets/test.$f
+  head -4000 $f | tail -2000>../final_sets/tune.$f
+  tail -n +4001 $f >../final_sets/train.$f
+done
+#############################################################
+#make language model
+
+cd ~/corpus/prepared/$s$t/lm
+
+~/irstlm/bin/add-start-end.sh < ~/corpus/prepared/$s$t/tok.tm.true.$t > tok.tm.true.$t.sb
+export IRSTLM=$HOME/irstlm; ~/irstlm/bin/build-lm.sh -i tok.tm.true.$t.sb -t ./tmp -p -s improved-kneser-ney -o tok.tm.true.$t.lm
+~/irstlm/bin/compile-lm --text tok.tm.true.$t.lm.gz tok.tm.true.$t.arpa
+
+# binarize language model
+
+~/mosesdecoder/bin/build_binary -a 64 -q 10 trie tok.tm.true.$t.arpa  tok.tm.true.$t.blm
+
+###################################
+#training
+
+cd ~/corpus/prepared/$s$t/working
+
+nohup nice ~/mosesdecoder/scripts/training/train-model.perl -mgiza -mgiza-cpus 4 -cores 4 -parallel -sort-buffer-size 1G -sort-batch-size 1024 -sort-compress gzip -sort-parallel 4 -root-dir train -corpus ~/corpus/prepared/$s$t/final_sets/train.clean -f $1 -e $2 -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:$HOME/corpus/prepared/$s$t/lm/tok.tm.true.$t.blm:8 -external-bin-dir ~/mosesdecoder/tools >& training.out &
+
+###############
+
