@@ -74,7 +74,6 @@ export IRSTLM=$HOME/irstlm; ~/irstlm/bin/build-lm.sh -i tok.tm.true.$t.sb -t ./t
 
 cd ~/corpus/prepared/$s$t/working
 
-nohup nice ~/mosesdecoder/scripts/training/train-model.perl -mgiza -mgiza-cpus 4 -cores 4 -parallel -sort-buffer-size 1G -sort-batch-size 1024 -sort-compress gzip -sort-parallel 4 -root-dir train -corpus ~/corpus/prepared/$s$t/final_sets/train.clean -f $1 -e $2 -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:$HOME/corpus/prepared/$s$t/lm/tok.tm.true.$t.blm:8 -external-bin-dir ~/mosesdecoder/tools >& training.out &
+nohup nice ~/mosesdecoder/scripts/training/train-model.perl -mgiza -mgiza-cpus 8 -cores 4 -parallel -sort-buffer-size 8G -sort-batch-size 768 -sort-compress gzip -sort-parallel 4 -root-dir train -corpus ~/corpus/prepared/$s$t/final_sets/train.clean -f $1 -e $2 -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:$HOME/corpus/prepared/$s$t/lm/tok.tm.true.$t.blm:8 -external-bin-dir ~/mosesdecoder/tools >& training.out &
 
 ###############
-
